@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "file-fairy"
+version = "0.1.0"
+description = "Config-driven file sync CLI: copy named groups of files from a source project to a target project on local disk, with plan/apply/status and checksum-based drift tracking."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "AGPL-3.0-or-later" }
+authors = [{ name = "Christopher Steel" }]
+dependencies = ["PyYAML>=6.0"]
+
+[project.scripts]
+file-fairy = "file_fairy:main"
+ff = "file_fairy:main"
+
+[tool.setuptools]
+py-modules = ["file_fairy"]

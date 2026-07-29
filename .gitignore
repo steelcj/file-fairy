@@ -1,0 +1,16 @@
+# Virtual environments. Wildcarded so it matches whichever convention is
+# in use, plain .venv/, .venv-file-fairy/, or the versioned
+# .venv-file-fairy-<version>/, without needing to standardize first.
+.venv*/
+
+# Python packaging artifacts from `pip install .` / `python -m build`
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.pyc
+
+# file-fairy's own state files, in case this repo is ever used as a sync
+# target of another manifest; never committed, same as any other
+# generated state.
+.file-fairy-state.yaml
