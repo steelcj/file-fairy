@@ -147,7 +147,7 @@ No path-containment guard exists on `dest`. The manifest is a config file the op
 
 ## License
 
-This document, *file-fairy*, by **Christopher Steel**, with AI assistance from **Claude Sonnet 5 (Anthropic)**, is licensed under the [GNU Affero General Public License v3.0 or later](https://www.gnu.org/licenses/agpl-3.0.html).
+This document, *file-faiexiexry*, by **Christopher Steel**, with AI assistance from **Claude Sonnet 5 (Anthropic)**, is licensed under the [GNU Affero General Public License v3.0 or later](https://www.gnu.org/licenses/agpl-3.0.html).
 
 ## Changelog
 
