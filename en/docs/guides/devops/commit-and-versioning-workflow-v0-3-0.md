@@ -1,10 +1,10 @@
 ---
 dcterms:title: "Commit and Versioning Workflow"
-dcterms:version: "0.2.0"
+dcterms:version: "0.3.0"
 dcterms:creator: "Christopher Steel"
 dcterms:description: "Practical workflow for commits and version bumps: initial commit, and every subsequent release after that."
 dcterms:created: "2026-07-24"
-dcterms:modified: "2026-07-28"
+dcterms:modified: "2026-08-02"
 dcterms:format: "text/markdown"
 dcterms:language: "en"
 sat:language_bcp47: "en"
@@ -14,9 +14,29 @@ dcterms:rights: >
   Copyright 2026 Christopher Steel.
   SPDX-License-Identifier: AGPL-3.0-or-later
 sat:uuid: ""
+sat:repository: "sat-doc-automa"
+sat:path: "en/docs/guides/devops/"
 sat:version_at_creation: "0.4.0"
 sat:migration_status: pre-sat
 sat:changelog:
+  - version: "0.3.0"
+    date: "2026-08-02"
+    author: "Christopher Steel"
+    notes: >
+      Added the fourth ceremony step, "Publish the release," now that
+      publish-release.py exists and is validated: deterministic tarball
+      (built twice, refused on any byte difference), SHA256SUMS,
+      optional GPG signature that never blocks when absent, published
+      through a provider backend detected from the remote (gh for
+      GitHub; a plain directory as the narrowest backend). Stated the
+      maintainer-side requirements and their guarantors. Added
+      publish-release.py to the initial-commit file listing, extended
+      Troubleshooting with the publish refusals, and corrected the
+      "It your push refuses" typo. Added sat:repository and sat:path
+      to the frontmatter per the session's metadata convention. This
+      version drafted with Claude Fable 5 (Anthropic); the License
+      continues to name the models that produced the majority of the
+      current text, per the mixed-model attribution decision.
   - version: "0.2.0"
     date: "2026-07-28"
     author: "Christopher Steel"
@@ -50,7 +70,7 @@ sat:changelog:
 
 # Commit and Versioning Workflow
 
-Version: 0.2.0
+Version: 0.3.0
 Status: Draft
 Style Guide: style-guide--versioned-documents-in-unrendered-markdown
 
@@ -108,6 +128,7 @@ git commit -m "Initial commit, v0.1.0
 	new file:   CHANGELOG.md
 	new file:   bump-version.py
 	new file:   cut-release.py
+	new file:   publish-release.py
 	new file:   en/docs/README.md
 "
 ```
@@ -183,9 +204,36 @@ To github.com:steelcj/sat-doc-automa.git
  * [new tag]         v0.1.4 -> v0.1.4
 ```
 
+### Publish the release
+
+After the tag is pushed, publish the release artifacts. Dry-run first to see exactly what would be built and published, then run for real:
+
+```bash
+python3 publish-release.py --dry-run
+python3 publish-release.py
+```
+
+Output example (dry run):
+
+```bash
+[publish-release] backend: dir, tag v0.1.4 verified locally and on origin
+[publish-release] built: sat-doc-automa-0.1.4.tar.gz (62171 bytes, sha256 3b774f4a04e4feac…, deterministic)
+[publish-release] dry run; nothing published. Artifacts left in dist/:
+  sat-doc-automa-0.1.4.tar.gz
+  SHA256SUMS
+```
+
+This builds a byte-stable tarball from `git archive` for the tag, builds it a second time and refuses to publish if the bytes differ (the determinism gate, checked on every run, not assumed), writes `SHA256SUMS`, optionally GPG-signs the checksum file, and publishes the artifacts through a provider backend detected from the `origin` URL: `gh` for GitHub remotes, or a plain directory with `--backend dir --target DIR`. On GitHub, the release notes are the changelog section this release rolled, so the entries written by hand in the first step are used twice, once in `CHANGELOG.md` and once as release notes, and never composed twice. Before touching any provider, it confirms the tag is actually on the remote with `git ls-remote`, which works identically over SSH or HTTPS against any provider.
+
+Signing never blocks: when `gpg` or a secret key is absent, the release publishes unsigned with a printed note. `--sign` makes a missing key an error; `--no-sign` skips signing entirely.
+
+Requirements, maintainer-side only, end users of a published tool need none of this: Python 3.8 or newer (osat-fluent-python-tool installs one where the platform lacks it), `git`, and, for GitHub remotes, `gh` installed from its official packages and authenticated once with `gh auth login`. `gpg` is optional, only needed for signed checksums. The script never reads, stores, logs, or echoes a credential; authentication belongs to the backend's own tooling and to the human. Validated on Linux; the script is pure Python with official `git` and `gh` installers on all three platforms, but a Windows run of the test suite is still pending, so Windows support is inferred, not verified. The reasoning behind this design, the shared-script form, the provider backends, and the connectivity split, is recorded in `decision--publish-release-shared-script-with-provider-interface` and `decision--gh-cli-for-release-asset-publishing` under `en/docs/decisions/devops/`.
+
 #### Troubleshooting
 
-It your push refuses, rather than proceeding, if `VERSION` already has uncommitted changes (a previous release was left half-done), if `Unreleased` is empty (nothing written to release), or if the target tag already exists (tags are never reused; fix forward with the next version number).
+If your cut refuses, rather than proceeding: `VERSION` already has uncommitted changes (a previous release was left half-done), `Unreleased` is empty (nothing written to release), or the target tag already exists (tags are never reused; fix forward with the next version number).
+
+If your publish refuses, rather than proceeding: the tag for `VERSION` does not exist (cut first), the tag is not on the remote (push first; the refusal prints the commands), a release for the tag already exists (releases are never reused; fix forward), the two archive builds produced different bytes (do not publish; investigate), or `--sign` was given with no usable key.
 
 ## License
 
@@ -195,6 +243,7 @@ This document, *Commit and Versioning Workflow*, by **Christopher Steel**, with 
 
 | Version | Status | Notes |
 |---------|--------|-------|
+| 0.3.0 | Draft | Added the "Publish the release" ceremony step for publish-release.py: deterministic tarball, SHA256SUMS, optional never-blocking GPG signature, provider backends. Stated maintainer-side requirements and guarantors. Extended Troubleshooting with the publish refusals and corrected its opening typo. Added publish-release.py to the initial-commit listing and sat:repository/sat:path to the frontmatter. |
 | 0.2.0 | Draft | Replaced the manual version-bump workflow with cut-release.py; renamed the section to "Release workflow"; added cut-release.py to the initial-commit file listing |
 | 0.1.3 | Draft | Reorganized and restored en/docs |
 | 0.1.2 | Draft | Minor edits |
