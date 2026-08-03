@@ -373,10 +373,17 @@ def build_plan(manifest: dict, state: dict) -> list[dict]:
             plan.append(entry)
             continue
 
-        # mirror, the default: state-keyed three-way logic.
+        # mirror, the default: state-keyed three-way logic. First
+        # contact with an existing, differing dest is a conflict, never
+        # a clobber, same posture as blocks and seed_if_missing; an
+        # existing identical dest is adopted as new (the copy is a
+        # no-op that records state).
         record = synced.get(item["dest"])
         if record is None:
-            entry["status"] = "new"
+            if dest_exists and sha256_of(dest_path) != current_source_sha:
+                entry["status"] = "conflict"
+            else:
+                entry["status"] = "new"
         else:
             dest_drifted = (
                 dest_exists

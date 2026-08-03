@@ -177,6 +177,35 @@ def main():
               and not (target3 / "b.md").exists(),
               "group mode inherits; item-level reference_only overrides")
 
+        # ── mirror first contact with an existing dest ──
+        s7 = root / "s7"
+        t7 = root / "t7"
+        s7.mkdir()
+        t7.mkdir()
+        (s7 / "same.md").write_text("identical\n")
+        (t7 / "same.md").write_text("identical\n")
+        (s7 / "diff.md").write_text("canonical\n")
+        (t7 / "diff.md").write_text("the target's variant\n")
+        m17 = write_manifest(root, s7, t7, """\
+  conventions:
+    items:
+      - source: same.md
+        dest: same.md
+      - source: diff.md
+        dest: diff.md
+""")
+        r = ff(m17)
+        check(r.returncode == 0 and "conflict" in (r.stdout + r.stderr)
+              and (t7 / "diff.md").read_text()
+              == "the target's variant\n",
+              "mirror first contact with a differing dest is a "
+              "conflict, not a clobber", r.stderr)
+        check((t7 / "same.md").read_text() == "identical\n",
+              "mirror first contact with an identical dest is adopted")
+        r = ff(m17)
+        check(r.returncode == 0 and "conflict" in (r.stdout + r.stderr),
+              "the unadopted variant stays a conflict on re-apply")
+
         # ── state: absent retracts an existing dest ──
         source4 = root / "s4"
         target4 = root / "t4"
