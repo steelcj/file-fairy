@@ -29,7 +29,6 @@ venv option
 ```bash
 git clone https://github.com/steelcj/file-fairy.git
 cd file-fairy
-python3 -m venv ".venv-file-fairy-$(cat VERSION)"
 VERSION=$(cat VERSION)
 /home/initial/.local/bin/python3.12 -m venv --prompt "file-fairy-${VERSION}" ".venv-file-fairy-${VERSION}"
 source ".venv-file-fairy-${VERSION}/bin/activate"
@@ -75,8 +74,6 @@ Installing collected packages: pip
       Successfully uninstalled pip-25.0.1
 Successfully installed pip-26.1.2
 ```
-
-
 
 ## Manifest format
 
