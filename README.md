@@ -162,6 +162,17 @@ groups:
         dest: en/docs/guides/devops/commit-and-versioning-workflow-v0-3-0.md
 ```
 
+## Retraction
+
+`state: absent` is the manifest-declared retraction, per *Decision: Manifest Organization, One Key per Axis* (`en/docs/decisions/sync/`): declare a dest and the fairy deletes it from the target if present, shown first in the plan under its own `RETRACT` section. No source is needed, no CLI flag exists for it, and it applies to any declared dest whether or not the fairy ever synced it, because the orphan problem predates the state file. An already-absent dest reports as `retired`, a no-op.
+
+```yaml
+  retired:
+    items:
+      - state: absent
+        dest: en/docs/devops/commit-and-versioning-workflow-v0-2-0.md
+```
+
 Run the test suite with `python3 test_file_fairy.py`.
 
 ## State

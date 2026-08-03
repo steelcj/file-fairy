@@ -177,6 +177,68 @@ def main():
               and not (target3 / "b.md").exists(),
               "group mode inherits; item-level reference_only overrides")
 
+        # ── state: absent retracts an existing dest ──
+        source4 = root / "s4"
+        target4 = root / "t4"
+        source4.mkdir()
+        target4.mkdir()
+        (target4 / "orphan.md").write_text("superseded copy\n")
+        m5 = write_manifest(root, source4, target4, """\
+  retired:
+    items:
+      - state: absent
+        dest: orphan.md
+      - state: absent
+        dest: never-existed.md
+""")
+        p = ff_plan(m5)
+        check("RETRACT" in p.stdout and "retired" in p.stdout,
+              "plan shows retract and retired in their own sections",
+              p.stdout)
+        r = ff(m5)
+        check(r.returncode == 0 and not (target4 / "orphan.md").exists(),
+              "state: absent deletes the existing dest", r.stderr)
+        check("retracted: orphan.md" in r.stdout,
+              "retraction is reported by dest")
+        r = ff(m5)
+        check(r.returncode == 0 and "nothing to apply" in r.stdout,
+              "re-apply after retraction is a no-op", r.stderr)
+
+        # ── absent needs no source, and ignores sync_mode ──
+        m6 = write_manifest(root, source4, target4, """\
+  retired:
+    sync_mode: seed_if_missing
+    items:
+      - state: absent
+        dest: also-gone.md
+""")
+        (target4 / "also-gone.md").write_text("x\n")
+        r = ff(m6)
+        check(r.returncode == 0
+              and not (target4 / "also-gone.md").exists(),
+              "absent works under any inherited sync_mode", r.stderr)
+
+        # ── scheduled and unknown states refuse by name ──
+        m7 = write_manifest(root, source4, target4, """\
+  broken:
+    items:
+      - state: directory
+        dest: somewhere/
+""")
+        r = ff(m7)
+        check(r.returncode != 0 and "scheduled but" in r.stderr,
+              "state: directory refuses as scheduled, not unknown",
+              r.stderr)
+        m8 = write_manifest(root, source4, target4, """\
+  broken:
+    items:
+      - state: vapor
+        dest: x.md
+""")
+        r = ff(m8)
+        check(r.returncode != 0 and "unknown state" in r.stderr,
+              "unknown state is a manifest error", r.stderr)
+
         # ── unknown sync_mode refuses ──
         m4 = write_manifest(root, source3, target3, """\
   broken:

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `state: absent`, the manifest-declared retraction, first feature under decision--manifest-organization-one-key-per-axis: declare a dest, the fairy deletes it from the target if present (plan section `RETRACT`, no-op status `retired` when already gone), no source needed, blind to sync_mode and the state file by ruling. Scheduled states (`directory`, `touch`) refuse by name; unknown states are manifest errors. Seven new checks in test_file_fairy.py (20 total).
+- The manifest-organization decision record and its design document land in en/docs/.
+
 ## [0.2.0] - 2026-08-03
 
 ### Added

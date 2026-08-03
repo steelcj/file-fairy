@@ -32,6 +32,8 @@ Manifest shape (see osat-fluent-sync-manifest.yaml for a worked example):
             sync_mode: seed_if_missing   # optional; overrides the group
           - source: null            # items with no source are informational
             dest: SOME/FILE.md      # only; file-fairy never touches them
+          - state: absent           # manifest-declared retraction: delete
+            dest: old/path.md       # this path in the target if present
 
 Sync modes, per decision--file-fairy-manifest-declared-sync-policy:
 declared in the manifest at group level (inherited) or item level
@@ -45,6 +47,14 @@ declared in the manifest at group level (inherited) or item level
     overwrite       the target never gets a vote; create or overwrite,
                     local edits included, no conflict state
     reference_only  declared but never touched (group or item level)
+
+The state key, per decision--manifest-organization-one-key-per-axis:
+state declares what a path should BE (file, the default, or absent).
+state: absent needs no source; if the dest exists in the target it is
+retracted (deleted) at apply, shown in the plan's own RETRACT section
+first. Retraction is manifest-declared intent, never a CLI flag, per
+the sync-policy decision. Other state values from the design (directory,
+touch) are scheduled, not yet implemented, and are refused by name.
 
 State file: a per-target-repo YAML file, default
 <local_target_repo_path>/.file-fairy-state.yaml, recording, per dest path,
@@ -76,6 +86,9 @@ import yaml
 STATE_FILENAME = ".file-fairy-state.yaml"
 
 SYNC_MODES = ("mirror", "seed_if_missing", "overwrite", "reference_only")
+
+STATES = ("file", "absent")
+SCHEDULED_STATES = ("directory", "touch")
 
 
 # ── Small helpers ────────────────────────────────────────────────────────────
@@ -136,18 +149,34 @@ def effective_mode(group: dict, item: dict, group_name: str) -> str:
     return mode
 
 
+def effective_state(item: dict, group_name: str) -> str:
+    """The item's state, defaulting to file. Scheduled-but-unimplemented
+    states are refused by name; unknown states are a manifest error."""
+    state = item.get("state", "file")
+    if state in SCHEDULED_STATES:
+        fail(f"state {state!r} in group {group_name!r} is scheduled but "
+             f"not yet implemented (see the manifest-organization "
+             f"decision's implementation order)")
+    if state not in STATES:
+        fail(f"unknown state {state!r} in group {group_name!r}; "
+             f"valid states: {', '.join(STATES)}")
+    return state
+
+
 def iter_syncable_items(manifest: dict):
-    """Yield (group_name, item, mode) for every item that is actually
-    copyable: skips reference_only groups and items, and items with no
-    source."""
+    """Yield (group_name, item, mode, state) for every item the plan
+    should consider: skips reference_only groups and items, and file
+    items with no source (informational only). Absent items need no
+    source; their declaration is the whole instruction."""
     for group_name, group in manifest["groups"].items():
         for item in group.get("items", []):
             mode = effective_mode(group, item, group_name)
             if mode == "reference_only":
                 continue
-            if item.get("source") is None:
+            state = effective_state(item, group_name)
+            if state == "file" and item.get("source") is None:
                 continue
-            yield group_name, item, mode
+            yield group_name, item, mode, state
 
 
 def build_plan(manifest: dict, state: dict) -> list[dict]:
@@ -160,9 +189,24 @@ def build_plan(manifest: dict, state: dict) -> list[dict]:
     synced = state.get("synced", {})
 
     plan = []
-    for group_name, item, mode in iter_syncable_items(manifest):
-        source_path = source_root / item["source"]
+    for group_name, item, mode, state in iter_syncable_items(manifest):
         dest_path = target_root / item["dest"]
+
+        if state == "absent":
+            # Manifest-declared retraction: existence-keyed, blind to
+            # sync_mode and to the state file, per ruling 3 of the
+            # manifest-organization decision.
+            plan.append({
+                "group": group_name,
+                "source": item.get("source"),
+                "dest": item["dest"],
+                "dest_path": dest_path,
+                "mode": mode,
+                "status": "retract" if dest_path.is_file() else "retired",
+            })
+            continue
+
+        source_path = source_root / item["source"]
         entry = {
             "group": group_name,
             "source": item["source"],
@@ -234,14 +278,16 @@ def print_plan(plan: list[dict]) -> None:
     for entry in plan:
         by_status.setdefault(entry["status"], []).append(entry)
 
-    order = ["conflict", "missing-source", "new", "update", "present",
-             "unchanged"]
+    order = ["retract", "conflict", "missing-source", "new", "update",
+             "present", "retired", "unchanged"]
     labels = {
+        "retract": "RETRACT  (declared absent; will be deleted)",
         "conflict": "CONFLICT  (target changed locally since last sync)",
         "missing-source": "MISSING SOURCE  (file does not exist upstream)",
         "new": "NEW  (not yet synced)",
         "update": "UPDATE  (source changed since last sync)",
         "present": "present  (seed_if_missing; the target owns it)",
+        "retired": "retired  (declared absent; already gone)",
         "unchanged": "unchanged",
     }
     for status in order:
@@ -250,15 +296,20 @@ def print_plan(plan: list[dict]) -> None:
             continue
         print(f"\n{labels[status]}")
         for e in entries:
-            print(f"  [{e['group']}] {e['source']} -> {e['dest']}")
+            if status in ("retract", "retired"):
+                print(f"  [{e['group']}] {e['dest']}")
+            else:
+                print(f"  [{e['group']}] {e['source']} -> {e['dest']}")
 
     total_action = sum(
         len(by_status.get(s, [])) for s in ("new", "update")
     )
     n_conflict = len(by_status.get("conflict", []))
     n_missing = len(by_status.get("missing-source", []))
+    n_retract = len(by_status.get("retract", []))
     print()
     log(f"{total_action} item(s) would be synced, "
+        f"{n_retract} retraction(s), "
         f"{n_conflict} conflict(s), {n_missing} missing source(s)")
 
 
@@ -286,6 +337,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
     plan = build_plan(manifest, state)
 
     actionable = [e for e in plan if e["status"] in ("new", "update")]
+    retractions = [e for e in plan if e["status"] == "retract"]
     conflicts = [e for e in plan if e["status"] == "conflict"]
     missing = [e for e in plan if e["status"] == "missing-source"]
 
@@ -306,13 +358,14 @@ def cmd_apply(args: argparse.Namespace) -> int:
     if args.force:
         actionable = actionable + conflicts
 
-    if not actionable:
+    if not actionable and not retractions:
         log("nothing to apply")
         return 0
 
     if not args.yes:
         print()
-        print_plan([e for e in plan if e["status"] in ("new", "update")]
+        print_plan([e for e in plan
+                    if e["status"] in ("new", "update", "retract")]
                     + (conflicts if args.force else []))
         answer = input("\nApply the above? [y/N] ").strip().lower()
         if answer != "y":
@@ -334,8 +387,14 @@ def cmd_apply(args: argparse.Namespace) -> int:
         }
         print(f"  synced: {entry['source']} -> {entry['dest']}")
 
+    for entry in retractions:
+        entry["dest_path"].unlink()
+        synced.pop(entry["dest"], None)
+        print(f"  retracted: {entry['dest']}")
+
     save_state(state_path, state)
-    log(f"{len(actionable)} item(s) synced; state written to {state_path}")
+    log(f"{len(actionable)} item(s) synced, "
+        f"{len(retractions)} retracted; state written to {state_path}")
     return 0
 
 
