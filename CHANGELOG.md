@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Managed blocks, second feature under decision--manifest-organization-one-key-per-axis: a `block:` item owns one marker-delimited region inside a file the target owns. Region reconciled per sync_mode (mirror protects in-region edits as conflicts, first contact with a differing region included; overwrite reclaims; seed_if_missing leaves a present block alone), inserted at `anchor` (EOF default, BOF) when markers are absent, dest created holding only the block when missing, everything outside the markers untouched, malformed markers an error. Block state tracked as `dest::name`. Twelve new checks (32 total).
+
 ## [0.3.0] - 2026-08-03
 
 ### Added

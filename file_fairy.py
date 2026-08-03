@@ -34,6 +34,10 @@ Manifest shape (see osat-fluent-sync-manifest.yaml for a worked example):
             dest: SOME/FILE.md      # only; file-fairy never touches them
           - state: absent           # manifest-declared retraction: delete
             dest: old/path.md       # this path in the target if present
+          - block: license          # managed block: the fairy owns one
+            source: path/block.md   # marked region inside a file the
+            dest: README.md         # target otherwise owns
+            anchor: EOF             # insert point when markers are absent
 
 Sync modes, per decision--file-fairy-manifest-declared-sync-policy:
 declared in the manifest at group level (inherited) or item level
@@ -55,6 +59,25 @@ retracted (deleted) at apply, shown in the plan's own RETRACT section
 first. Retraction is manifest-declared intent, never a CLI flag, per
 the sync-policy decision. Other state values from the design (directory,
 touch) are scheduled, not yet implemented, and are refused by name.
+
+Managed blocks, per decision--manifest-organization-one-key-per-axis:
+a block item's unit is a region, not a file. The region is delimited by
+HTML comment markers, invisible in rendered markdown:
+
+    <!-- fairy:begin NAME -->
+    ...the source file's content...
+    <!-- fairy:end NAME -->
+
+If the markers exist in dest, the region between them is reconciled per
+the item's sync_mode with the region as the unit (mirror protects a
+local edit inside the markers as a conflict; overwrite reclaims it;
+seed_if_missing leaves a present block alone). If the markers are
+absent, the block is inserted at `anchor` (EOF, the default, or BOF).
+If dest itself is missing, it is created containing only the block.
+Everything outside the markers belongs to the target and is never
+touched. Malformed markers (begin without end, duplicates) are an
+error, never a guess. Block state is tracked in the state file under
+"dest::NAME".
 
 State file: a per-target-repo YAML file, default
 <local_target_repo_path>/.file-fairy-state.yaml, recording, per dest path,
@@ -89,6 +112,34 @@ SYNC_MODES = ("mirror", "seed_if_missing", "overwrite", "reference_only")
 
 STATES = ("file", "absent")
 SCHEDULED_STATES = ("directory", "touch")
+SCHEDULED_KEYS = ("content", "substitute")
+ANCHORS = ("EOF", "BOF")
+
+
+def block_markers(name: str) -> tuple[str, str]:
+    return (f"<!-- fairy:begin {name} -->", f"<!-- fairy:end {name} -->")
+
+
+def split_block(text: str, name: str):
+    """Return (before, body, after) around the named block's markers, or
+    None if the markers are absent. Malformed markers fail loudly."""
+    begin, end = block_markers(name)
+    lines = text.splitlines(keepends=True)
+    b_idx = [i for i, ln in enumerate(lines) if ln.strip() == begin]
+    e_idx = [i for i, ln in enumerate(lines) if ln.strip() == end]
+    if not b_idx and not e_idx:
+        return None
+    if len(b_idx) != 1 or len(e_idx) != 1 or e_idx[0] <= b_idx[0]:
+        fail(f"malformed fairy block markers for {name!r}: expected "
+             f"exactly one begin and one end, begin before end")
+    b, e = b_idx[0], e_idx[0]
+    return ("".join(lines[: b + 1]),
+            "".join(lines[b + 1 : e]),
+            "".join(lines[e:]))
+
+
+def ensure_newline(text: str) -> str:
+    return text if text.endswith("\n") or not text else text + "\n"
 
 
 # ── Small helpers ────────────────────────────────────────────────────────────
@@ -170,8 +221,27 @@ def iter_syncable_items(manifest: dict):
     source; their declaration is the whole instruction."""
     for group_name, group in manifest["groups"].items():
         for item in group.get("items", []):
+            for key in SCHEDULED_KEYS:
+                if key in item:
+                    fail(f"{key!r} in group {group_name!r} is scheduled "
+                         f"but not yet implemented (see the manifest-"
+                         f"organization decision's implementation order)")
             mode = effective_mode(group, item, group_name)
             if mode == "reference_only":
+                continue
+            if "block" in item:
+                if item.get("state", "file") != "file":
+                    fail(f"block item {item['block']!r} in group "
+                         f"{group_name!r} cannot combine with state")
+                if item.get("source") is None:
+                    fail(f"block item {item['block']!r} in group "
+                         f"{group_name!r} needs a source (inline "
+                         f"content is scheduled, not yet implemented)")
+                if item.get("anchor", "EOF") not in ANCHORS:
+                    fail(f"unsupported anchor "
+                         f"{item.get('anchor')!r} for block "
+                         f"{item['block']!r}; valid: {', '.join(ANCHORS)}")
+                yield group_name, item, mode, "block"
                 continue
             state = effective_state(item, group_name)
             if state == "file" and item.get("source") is None:
@@ -204,6 +274,64 @@ def build_plan(manifest: dict, state: dict) -> list[dict]:
                 "mode": mode,
                 "status": "retract" if dest_path.is_file() else "retired",
             })
+            continue
+
+        if state == "block":
+            name = item["block"]
+            source_path = source_root / item["source"]
+            entry = {
+                "group": group_name,
+                "source": item["source"],
+                "dest": item["dest"],
+                "source_path": source_path,
+                "dest_path": dest_path,
+                "mode": mode,
+                "block": name,
+                "anchor": item.get("anchor", "EOF"),
+            }
+            if not source_path.is_file():
+                entry["status"] = "missing-source"
+                plan.append(entry)
+                continue
+            desired = ensure_newline(source_path.read_text(encoding="utf-8"))
+            entry["desired_body"] = desired
+            entry["current_source_sha"] = hashlib.sha256(
+                desired.encode()).hexdigest()
+            state_key = f"{item['dest']}::{name}"
+            entry["state_key"] = state_key
+
+            if not dest_path.is_file():
+                entry["status"] = "new"
+                plan.append(entry)
+                continue
+            parts = split_block(dest_path.read_text(encoding="utf-8"), name)
+            if parts is None:
+                # Markers absent: seed-like insertion for every mode.
+                entry["status"] = "new"
+                plan.append(entry)
+                continue
+            body = parts[1]
+            if mode == "seed_if_missing":
+                entry["status"] = "present"
+            elif body == desired:
+                entry["status"] = "unchanged"
+            elif mode == "overwrite":
+                entry["status"] = "update"
+            else:
+                # mirror: three-way on the region via the state record.
+                record = synced.get(state_key)
+                body_sha = hashlib.sha256(body.encode()).hexdigest()
+                if record is not None and body_sha != record.get(
+                        "dest_sha256"):
+                    entry["status"] = "conflict"
+                elif record is None and body != desired:
+                    # First contact with an existing, differing region:
+                    # protect it, same posture as seed_if_missing's
+                    # first contact, surfaced as a conflict to rule on.
+                    entry["status"] = "conflict"
+                else:
+                    entry["status"] = "update"
+            plan.append(entry)
             continue
 
         source_path = source_root / item["source"]
@@ -298,6 +426,9 @@ def print_plan(plan: list[dict]) -> None:
         for e in entries:
             if status in ("retract", "retired"):
                 print(f"  [{e['group']}] {e['dest']}")
+            elif "block" in e:
+                print(f"  [{e['group']}] {e['source']} -> "
+                      f"{e['dest']} (block {e['block']})")
             else:
                 print(f"  [{e['group']}] {e['source']} -> {e['dest']}")
 
@@ -327,6 +458,35 @@ def cmd_plan(args: argparse.Namespace) -> int:
 def cmd_status(args: argparse.Namespace) -> int:
     # Same computation as plan; status is the read-only framing of it.
     return cmd_plan(args)
+
+
+def apply_block(entry: dict) -> None:
+    """Write the desired block body into dest: replace the region when
+    the markers exist, insert at the anchor when they are absent, create
+    the file when dest itself is absent. Everything outside the markers
+    is preserved byte for byte."""
+    name = entry["block"]
+    begin, end = block_markers(name)
+    desired = entry["desired_body"]
+    block_text = f"{begin}\n{desired}{end}\n"
+    dest_path = entry["dest_path"]
+
+    if not dest_path.is_file():
+        dest_path.write_text(block_text, encoding="utf-8")
+        return
+
+    text = dest_path.read_text(encoding="utf-8")
+    parts = split_block(text, name)
+    if parts is not None:
+        before, _, after = parts
+        dest_path.write_text(before + desired + after, encoding="utf-8")
+        return
+
+    if entry["anchor"] == "BOF":
+        dest_path.write_text(block_text + "\n" + text, encoding="utf-8")
+    else:
+        base = ensure_newline(text)
+        dest_path.write_text(base + "\n" + block_text, encoding="utf-8")
 
 
 def cmd_apply(args: argparse.Namespace) -> int:
@@ -376,12 +536,28 @@ def cmd_apply(args: argparse.Namespace) -> int:
     for entry in actionable:
         dest_path = entry["dest_path"]
         dest_path.parent.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        if "block" in entry:
+            apply_block(entry)
+            synced[entry["state_key"]] = {
+                "source_sha256": entry["current_source_sha"],
+                "dest_sha256": hashlib.sha256(
+                    entry["desired_body"].encode()).hexdigest(),
+                "synced_at": stamp,
+                "group": entry["group"],
+                "source": entry["source"],
+                "block": entry["block"],
+            }
+            print(f"  synced: {entry['source']} -> "
+                  f"{entry['dest']} (block {entry['block']})")
+            continue
+
         shutil.copyfile(entry["source_path"], dest_path)
         synced[entry["dest"]] = {
             "source_sha256": entry["current_source_sha"],
             "dest_sha256": sha256_of(dest_path),
-            "synced_at": datetime.now(timezone.utc)
-                .strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "synced_at": stamp,
             "group": entry["group"],
             "source": entry["source"],
         }

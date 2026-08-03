@@ -173,6 +173,27 @@ groups:
         dest: en/docs/devops/commit-and-versioning-workflow-v0-2-0.md
 ```
 
+## Managed blocks
+
+A block item makes a *region* the unit of sync instead of a file: the fairy owns the text between HTML comment markers inside a file the target otherwise owns, per *Decision: Manifest Organization, One Key per Axis*. If the markers exist, the region is reconciled under the item's `sync_mode` with the region as the unit, a local edit inside the markers is a `mirror` conflict, everything outside the markers is never touched. If the markers are absent the block is inserted at `anchor` (`EOF` default, or `BOF`); if the dest file is absent it is created holding only the block. First contact with an existing, differing region is a conflict, not a clobber. Malformed markers are an error, never a guess.
+
+```yaml
+  managed-blocks:
+    items:
+      - block: license
+        source: en/docs/automa/licenses/license-block--agpl-3-0-or-later.md
+        dest: README.md
+        anchor: EOF
+```
+
+renders in the target as:
+
+```markdown
+<!-- fairy:begin license -->
+...the source file's content...
+<!-- fairy:end license -->
+```
+
 Run the test suite with `python3 test_file_fairy.py`.
 
 ## State

@@ -218,6 +218,174 @@ def main():
               and not (target4 / "also-gone.md").exists(),
               "absent works under any inherited sync_mode", r.stderr)
 
+        # ── managed blocks ──
+        s5 = root / "s5"
+        t5 = root / "t5"
+        s5.mkdir()
+        t5.mkdir()
+        (s5 / "license-block.md").write_text("## License\n\nAGPL, v1 of the block.\n")
+        (t5 / "README.md").write_text("# target\n\nThe target's own prose.\n")
+        m9 = write_manifest(root, s5, t5, """\
+  blocks:
+    items:
+      - block: license
+        source: license-block.md
+        dest: README.md
+""")
+        r = ff(m9)
+        readme = (t5 / "README.md").read_text()
+        check(r.returncode == 0
+              and "<!-- fairy:begin license -->" in readme
+              and "AGPL, v1 of the block." in readme
+              and readme.startswith("# target\n\nThe target's own prose.\n"),
+              "block inserts at EOF with markers; target prose untouched",
+              r.stderr + readme)
+
+        r = ff(m9)
+        check(r.returncode == 0 and "nothing to apply" in r.stdout,
+              "unchanged block re-apply is a no-op")
+
+        # source changes; target edits OUTSIDE the markers survive
+        (s5 / "license-block.md").write_text("## License\n\nAGPL, v2 of the block.\n")
+        readme = (t5 / "README.md").read_text()
+        (t5 / "README.md").write_text(
+            readme.replace("The target's own prose.",
+                           "The target's own prose, edited locally."))
+        r = ff(m9)
+        readme = (t5 / "README.md").read_text()
+        check(r.returncode == 0
+              and "v2 of the block." in readme
+              and "edited locally." in readme,
+              "region updates while edits outside the markers survive",
+              r.stderr + readme)
+
+        # local edit INSIDE the markers: mirror protects it
+        readme = (t5 / "README.md").read_text()
+        (t5 / "README.md").write_text(
+            readme.replace("v2 of the block.", "hand-edited region"))
+        (s5 / "license-block.md").write_text("## License\n\nAGPL, v3.\n")
+        r = ff(m9)
+        readme = (t5 / "README.md").read_text()
+        check(r.returncode == 0 and "conflict" in (r.stdout + r.stderr)
+              and "hand-edited region" in readme,
+              "mirror block conflict protects the in-region edit")
+        r = ff(m9, "--force")
+        readme = (t5 / "README.md").read_text()
+        check("AGPL, v3." in readme
+              and "edited locally." in readme,
+              "--force reclaims the region, outside edits still intact",
+              readme)
+
+        # dest missing entirely: file created holding only the block
+        m10 = write_manifest(root, s5, t5, """\
+  blocks:
+    items:
+      - block: license
+        source: license-block.md
+        dest: CLAUDE.md
+""")
+        r = ff(m10)
+        claude = (t5 / "CLAUDE.md").read_text()
+        check(r.returncode == 0
+              and claude.startswith("<!-- fairy:begin license -->")
+              and claude.rstrip().endswith("<!-- fairy:end license -->"),
+              "missing dest is created holding only the block", claude)
+
+        # BOF anchor
+        (t5 / "notes.md").write_text("existing first line\n")
+        m11 = write_manifest(root, s5, t5, """\
+  blocks:
+    items:
+      - block: license
+        source: license-block.md
+        dest: notes.md
+        anchor: BOF
+""")
+        r = ff(m11)
+        notes = (t5 / "notes.md").read_text()
+        check(r.returncode == 0
+              and notes.startswith("<!-- fairy:begin license -->")
+              and notes.rstrip().endswith("existing first line"),
+              "anchor BOF inserts the block at the top", notes)
+
+        # first contact with an existing, differing region: protected
+        s6 = root / "s6"
+        t6 = root / "t6"
+        s6.mkdir()
+        t6.mkdir()
+        (s6 / "b.md").write_text("canonical body\n")
+        (t6 / "doc.md").write_text(
+            "<!-- fairy:begin b -->\nsomebody else's body\n"
+            "<!-- fairy:end b -->\n")
+        m12 = write_manifest(root, s6, t6, """\
+  blocks:
+    items:
+      - block: b
+        source: b.md
+        dest: doc.md
+""")
+        r = ff(m12)
+        check(r.returncode == 0 and "conflict" in (r.stdout + r.stderr)
+              and "somebody else's body"
+              in (t6 / "doc.md").read_text(),
+              "first contact with a differing region is a conflict, "
+              "not a clobber")
+
+        # seed_if_missing block: present region is the target's own
+        m13 = write_manifest(root, s6, t6, """\
+  blocks:
+    sync_mode: seed_if_missing
+    items:
+      - block: b
+        source: b.md
+        dest: doc.md
+""")
+        r = ff(m13)
+        check(r.returncode == 0
+              and "somebody else's body" in (t6 / "doc.md").read_text(),
+              "seed_if_missing leaves a present block alone")
+
+        # overwrite block reclaims without force
+        m14 = write_manifest(root, s6, t6, """\
+  blocks:
+    sync_mode: overwrite
+    items:
+      - block: b
+        source: b.md
+        dest: doc.md
+""")
+        r = ff(m14)
+        check(r.returncode == 0
+              and "canonical body" in (t6 / "doc.md").read_text(),
+              "overwrite block reclaims the region without --force",
+              r.stderr)
+
+        # malformed markers fail loudly
+        (t6 / "bad.md").write_text("<!-- fairy:begin b -->\nno end\n")
+        m15 = write_manifest(root, s6, t6, """\
+  blocks:
+    items:
+      - block: b
+        source: b.md
+        dest: bad.md
+""")
+        r = ff(m15)
+        check(r.returncode != 0 and "malformed" in r.stderr,
+              "malformed markers are an error, never a guess", r.stderr)
+
+        # scheduled keys refuse by name
+        m16 = write_manifest(root, s6, t6, """\
+  blocks:
+    items:
+      - block: b
+        source: b.md
+        dest: doc.md
+        substitute: true
+""")
+        r = ff(m16)
+        check(r.returncode != 0 and "scheduled" in r.stderr,
+              "substitute refuses as scheduled, not unknown", r.stderr)
+
         # ── scheduled and unknown states refuse by name ──
         m7 = write_manifest(root, source4, target4, """\
   broken:
