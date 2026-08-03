@@ -102,7 +102,7 @@ file-fairy plan manifest.yaml  # show changes, no writes
 file-fairy status manifest.yaml # alias for plan
 file-fairy apply  manifest.yaml # copy new/updated items
 file-fairy apply  manifest.yaml --yes # skip confirmation
-file-fairy apply  manifest.yaml --force # overwrite 
+file-fairy apply  manifest.yaml --force # one-off override for mirror conflicts
 ```
 
 Output example for 
@@ -130,7 +130,42 @@ Apply the above? [y/N] y
 
 ```
 
-Each item is classified as `new`, `update` (source changed upstream), `unchanged`, `conflict` (target changed locally since the last sync), or `missing-source`. `apply` skips conflicts unless `--force` is given, so a local hand-edit is never silently overwritten.
+Each item is classified as `new`, `update` (source changed upstream), `unchanged`, `present` (a `seed_if_missing` item the target now owns), `conflict` (a `mirror` item the target changed locally since the last sync), or `missing-source`. `apply` skips conflicts unless `--force` is given, so a local hand-edit is never silently overwritten.
+
+## Sync modes
+
+Sync intent is declared in the manifest, per *Decision: Manifest-Declared Sync Policy* (`en/docs/decisions/sync/`), at group level (inherited by the group's items) or item level (overrides the group). Absent means `mirror`, which is exactly the pre-0.2.0 behaviour, so existing manifests are unaffected.
+
+| `sync_mode` | Dest missing | Dest present, source changed | Dest present, locally edited |
+| --- | --- | --- | --- |
+| `mirror` (default) | create | overwrite | protect (conflict, skip) |
+| `seed_if_missing` | create | do nothing | do nothing |
+| `overwrite` | create | overwrite | overwrite |
+| `reference_only` | never touch | never touch | never touch |
+
+`seed_if_missing` decides purely on whether the dest path exists, never on content or sync state, which makes it right for files each target should own after birth, a `VERSION` being the canonical example. `overwrite` is the standing form of "the target never gets a vote"; `--force` remains only as a one-off interactive override for `mirror` conflicts. `reference_only` now also works per item.
+
+Example:
+
+```yaml
+groups:
+  house-style:
+    sync_mode: overwrite        # the project doesn't get a vote on these
+    items:
+      - source: .editorconfig
+        dest: .editorconfig
+  scaffolding:
+    sync_mode: seed_if_missing  # plant it once, then it's theirs
+    items:
+      - source: VERSION
+        dest: VERSION
+  shared-docs:                  # no sync_mode, so mirror, the safe default
+    items:
+      - source: en/docs/guides/devops/commit-and-versioning-workflow-v0-3-0.md
+        dest: en/docs/guides/devops/commit-and-versioning-workflow-v0-3-0.md
+```
+
+Run the test suite with `python3 test_file_fairy.py`.
 
 ## State
 

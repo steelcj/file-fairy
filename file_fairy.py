@@ -23,19 +23,37 @@ Manifest shape (see osat-fluent-sync-manifest.yaml for a worked example):
     local_target_repo_path: "~/path/to/target"
     groups:
       <group-name>:
-        sync_mode: reference_only   # optional; skips this group entirely
+        sync_mode: mirror           # optional; group default, see below
         items:
           - source: relative/path/in/source.md
             dest: relative/path/in/target.md
+          - source: relative/path/in/source_2.md
+            dest: relative/path/in/target_2.md
+            sync_mode: seed_if_missing   # optional; overrides the group
           - source: null            # items with no source are informational
             dest: SOME/FILE.md      # only; file-fairy never touches them
+
+Sync modes, per decision--file-fairy-manifest-declared-sync-policy:
+declared in the manifest at group level (inherited) or item level
+(overrides the group). Absent means mirror.
+
+    mirror          create if missing, overwrite when the source changed,
+                    protect a local hand-edit (conflict, skipped unless
+                    apply is run with --force)
+    seed_if_missing create if the dest path is missing, otherwise leave
+                    the target's copy alone regardless of content
+    overwrite       the target never gets a vote; create or overwrite,
+                    local edits included, no conflict state
+    reference_only  declared but never touched (group or item level)
 
 State file: a per-target-repo YAML file, default
 <local_target_repo_path>/.file-fairy-state.yaml, recording, per dest path,
 the source and dest checksums as of the last successful apply. This is
 what makes plan/status cheap and lets file-fairy tell "source changed
-upstream" apart from "target changed locally" (a conflict, apply refuses
-to overwrite without --force).
+upstream" apart from "target changed locally" (a mirror conflict). The
+--force flag is a one-off interactive override for mirror conflicts only;
+the standing declaration "always take source" belongs in the manifest as
+sync_mode: overwrite, where it is reviewable in a diff.
 
 Deliberately not implemented: any path-containment guard on dest. The
 manifest is a config file the operator authors themselves, not adversarial
@@ -56,6 +74,8 @@ from pathlib import Path
 import yaml
 
 STATE_FILENAME = ".file-fairy-state.yaml"
+
+SYNC_MODES = ("mirror", "seed_if_missing", "overwrite", "reference_only")
 
 
 # ── Small helpers ────────────────────────────────────────────────────────────
@@ -106,27 +126,41 @@ def save_state(state_path: Path, state: dict) -> None:
 
 # ── Planning ─────────────────────────────────────────────────────────────────
 
+def effective_mode(group: dict, item: dict, group_name: str) -> str:
+    """The item's sync_mode, falling back to the group's, defaulting to
+    mirror. An unknown value is a manifest error, not a silent default."""
+    mode = item.get("sync_mode", group.get("sync_mode", "mirror"))
+    if mode not in SYNC_MODES:
+        fail(f"unknown sync_mode {mode!r} in group {group_name!r}; "
+             f"valid modes: {', '.join(SYNC_MODES)}")
+    return mode
+
+
 def iter_syncable_items(manifest: dict):
-    """Yield (group_name, item) for every item that is actually copyable:
-    skips reference_only groups and items with no source."""
+    """Yield (group_name, item, mode) for every item that is actually
+    copyable: skips reference_only groups and items, and items with no
+    source."""
     for group_name, group in manifest["groups"].items():
-        if group.get("sync_mode") == "reference_only":
-            continue
         for item in group.get("items", []):
+            mode = effective_mode(group, item, group_name)
+            if mode == "reference_only":
+                continue
             if item.get("source") is None:
                 continue
-            yield group_name, item
+            yield group_name, item, mode
 
 
 def build_plan(manifest: dict, state: dict) -> list[dict]:
     """Return a list of per-item plan entries with a computed status:
-    new, update, unchanged, conflict, or missing-source."""
+    new, update, unchanged, present, conflict, or missing-source. The
+    status a path can reach depends on its sync_mode; only mirror items
+    can be in conflict."""
     source_root = expand(manifest["local_source_repo_path"])
     target_root = expand(manifest["local_target_repo_path"])
     synced = state.get("synced", {})
 
     plan = []
-    for group_name, item in iter_syncable_items(manifest):
+    for group_name, item, mode in iter_syncable_items(manifest):
         source_path = source_root / item["source"]
         dest_path = target_root / item["dest"]
         entry = {
@@ -135,6 +169,7 @@ def build_plan(manifest: dict, state: dict) -> list[dict]:
             "dest": item["dest"],
             "source_path": source_path,
             "dest_path": dest_path,
+            "mode": mode,
         }
 
         if not source_path.is_file():
@@ -143,12 +178,34 @@ def build_plan(manifest: dict, state: dict) -> list[dict]:
             continue
 
         current_source_sha = sha256_of(source_path)
-        record = synced.get(item["dest"])
+        entry["current_source_sha"] = current_source_sha
+        dest_exists = dest_path.is_file()
 
+        if mode == "seed_if_missing":
+            # Existence-keyed, deliberately blind to the state file and
+            # to content: plant it once when absent, then it is the
+            # target's own, per the sync-policy decision.
+            entry["status"] = "present" if dest_exists else "new"
+            plan.append(entry)
+            continue
+
+        if mode == "overwrite":
+            # Content-keyed against the source alone; local edits are
+            # not protected and no conflict state exists in this mode.
+            if not dest_exists:
+                entry["status"] = "new"
+            elif sha256_of(dest_path) != current_source_sha:
+                entry["status"] = "update"
+            else:
+                entry["status"] = "unchanged"
+            plan.append(entry)
+            continue
+
+        # mirror, the default: state-keyed three-way logic.
+        record = synced.get(item["dest"])
         if record is None:
             entry["status"] = "new"
         else:
-            dest_exists = dest_path.is_file()
             dest_drifted = (
                 dest_exists
                 and sha256_of(dest_path) != record.get("dest_sha256")
@@ -164,7 +221,6 @@ def build_plan(manifest: dict, state: dict) -> list[dict]:
             else:
                 entry["status"] = "unchanged"
 
-        entry["current_source_sha"] = current_source_sha
         plan.append(entry)
 
     return plan
@@ -178,12 +234,14 @@ def print_plan(plan: list[dict]) -> None:
     for entry in plan:
         by_status.setdefault(entry["status"], []).append(entry)
 
-    order = ["conflict", "missing-source", "new", "update", "unchanged"]
+    order = ["conflict", "missing-source", "new", "update", "present",
+             "unchanged"]
     labels = {
         "conflict": "CONFLICT  (target changed locally since last sync)",
         "missing-source": "MISSING SOURCE  (file does not exist upstream)",
         "new": "NEW  (not yet synced)",
         "update": "UPDATE  (source changed since last sync)",
+        "present": "present  (seed_if_missing; the target owns it)",
         "unchanged": "unchanged",
     }
     for status in order:
@@ -237,9 +295,11 @@ def cmd_apply(args: argparse.Namespace) -> int:
             print(f"  [{e['group']}] {e['source']} (not found)")
 
     if conflicts and not args.force:
-        log(f"{len(conflicts)} item(s) are in conflict and will be skipped "
-            f"(target changed locally since last sync). Use --force to "
-            f"overwrite, or resolve them by hand:")
+        log(f"{len(conflicts)} mirror item(s) are in conflict and will be "
+            f"skipped (target changed locally since last sync). Resolve "
+            f"by hand, or overwrite just this once with --force; if the "
+            f"target should never keep local edits, declare "
+            f"sync_mode: overwrite in the manifest instead:")
         for e in conflicts:
             print(f"  [{e['group']}] {e['dest']}")
 
@@ -312,7 +372,10 @@ def main() -> int:
     p_apply.add_argument("--yes", action="store_true",
                           help="Skip the confirmation prompt.")
     p_apply.add_argument("--force", action="store_true",
-                          help="Also overwrite items in conflict.")
+                          help="One-off override for mirror items in "
+                               "conflict: overwrite them this run. The "
+                               "standing form of this intent is "
+                               "sync_mode: overwrite in the manifest.")
     p_apply.set_defaults(func=cmd_apply)
 
     args = parser.parse_args(argv)
