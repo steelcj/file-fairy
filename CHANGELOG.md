@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-25
+
+- Made installable
+- Lots of documentation updates
+
 ### Changed
 
 - Mirror first contact with an existing dest now checks the disk: a differing existing file is a conflict, never a silent clobber, and an identical one is adopted (the copy is a no-op that records state). This closes the open question the sync-policy decision left on mirror items, matching the protection seed_if_missing and managed blocks already had. Three new checks (35 total).

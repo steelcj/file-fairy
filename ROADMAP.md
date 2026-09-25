@@ -1,17 +1,17 @@
 ---
-dcterms:title: "file-fairy Roadmap"
+dc:title: "file-fairy Roadmap"
 dcterms:version: "0.1.0"
-dcterms:creator: "Christopher Steel"
-dcterms:contributor: "Claude Fable 5 (Anthropic) — drafting assistance"
-dcterms:description: "Running record of decisions and open work for file-fairy, newest first: the usage guide's canonical home, the invocation and venv friction, and the accepted feature backlog carried by reference."
+dc:creator: "Christopher Steel"
+dc:contributor: "Claude Fable 5 (Anthropic) — drafting assistance"
+dc:description: "Running record of decisions and open work for file-fairy, newest first: the usage guide's canonical home, the invocation and venv friction, and the accepted feature backlog carried by reference."
 dcterms:created: "2026-08-03"
 dcterms:modified: "2026-08-03"
-dcterms:format: "text/markdown"
-dcterms:language: "en"
+dc:format: "text/markdown"
+dc:language: "en"
 sat:language_bcp47: "en"
-dcterms:identifier: "file-fairy-roadmap"
+dc:identifier: "file-fairy-roadmap"
 dcterms:rightsHolder: "Christopher Steel"
-dcterms:rights: >
+dc:rights: >
   Copyright 2026 Christopher Steel.
   SPDX-License-Identifier: AGPL-3.0-or-later
 sat:uuid: ""

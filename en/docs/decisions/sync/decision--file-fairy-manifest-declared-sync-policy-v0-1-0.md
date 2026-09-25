@@ -1,17 +1,17 @@
 ---
-dcterms:title: "Decision: Manifest-Declared Sync Policy for file-fairy"
+dc:title: "Decision: Manifest-Declared Sync Policy for file-fairy"
 dcterms:version: "0.1.0"
-dcterms:creator: "Christopher Steel"
-dcterms:contributor: "Claude (Anthropic) — drafting assistance"
-dcterms:description: "Records the decision to move file-fairy's per-file sync intent (create-if-missing, mirror, always-overwrite, reference-only) out of the global --force CLI flag and into a per-group/per-item sync_mode vocabulary in the manifest, and to keep destructive directory operations declaration-only."
+dc:creator: "Christopher Steel"
+dc:contributor: "Claude (Anthropic) — drafting assistance"
+dc:description: "Records the decision to move file-fairy's per-file sync intent (create-if-missing, mirror, always-overwrite, reference-only) out of the global --force CLI flag and into a per-group/per-item sync_mode vocabulary in the manifest, and to keep destructive directory operations declaration-only."
 dcterms:created: "2026-08-02"
 dcterms:modified: "2026-08-02"
-dcterms:format: "text/markdown"
-dcterms:language: "en"
+dc:format: "text/markdown"
+dc:language: "en"
 sat:language_bcp47: "en"
-dcterms:identifier: "decision--file-fairy-manifest-declared-sync-policy"
+dc:identifier: "decision--file-fairy-manifest-declared-sync-policy"
 dcterms:rightsHolder: "Christopher Steel"
-dcterms:rights: >
+dc:rights: >
   Copyright 2026 Christopher Steel.
   SPDX-License-Identifier: AGPL-3.0-or-later
 sat:uuid: ""

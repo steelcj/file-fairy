@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "file-fairy"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Config-driven file sync CLI: copy named groups of files from a source project to a target project on local disk, with plan/apply/status and checksum-based drift tracking."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -18,3 +18,8 @@ ff = "file_fairy:main"
 
 [tool.setuptools]
 py-modules = ["file_fairy"]
+
+[tool.setuptools.dynamic]
+# VERSION is authoritative, per the release ceremony; read it rather
+# than duplicating it here, where it drifted to 0.1.0 by 0.5.0.
+version = { file = "VERSION" }

@@ -1,18 +1,18 @@
 ---
-dcterms:title: "Design: Manifest Organization for the Accepted Features"
+dc:title: "Design: Manifest Organization for the Accepted Features"
 dcterms:version: "0.1.0"
-dcterms:creator: "Christopher Steel"
-dcterms:contributor: "Claude Fable 5 (Anthropic) — drafting assistance"
-dcterms:description: "The manifest-organization step gating further file-fairy features: proposes that each axis of the four-axes meta-model becomes exactly one manifest key (state, source or content, sync_mode, and discovery via glob), shows one full worked manifest, records the alternatives, and lists the rulings needed before implementation."
+dc:creator: "Christopher Steel"
+dc:contributor: "Claude Fable 5 (Anthropic) — drafting assistance"
+dc:description: "The manifest-organization step gating further file-fairy features: proposes that each axis of the four-axes meta-model becomes exactly one manifest key (state, source or content, sync_mode, and discovery via glob), shows one full worked manifest, records the alternatives, and lists the rulings needed before implementation."
 dcterms:created: "2026-08-03"
 dcterms:modified: "2026-08-03"
-dcterms:format: "text/markdown"
-dcterms:language: "en"
+dc:format: "text/markdown"
+dc:language: "en"
 sat:language_bcp47: "en"
-dcterms:relation: "decision--file-fairy-manifest-declared-sync-policy, analysis--ansible-builtin-modules-as-file-fairy-feature-candidates"
-dcterms:identifier: "design--manifest-organization-for-accepted-features"
+dc:relation: "decision--file-fairy-manifest-declared-sync-policy, analysis--ansible-builtin-modules-as-file-fairy-feature-candidates"
+dc:identifier: "design--manifest-organization-for-accepted-features"
 dcterms:rightsHolder: "Christopher Steel"
-dcterms:rights: >
+dc:rights: >
   Copyright 2026 Christopher Steel.
   SPDX-License-Identifier: AGPL-3.0-or-later
 sat:uuid: ""

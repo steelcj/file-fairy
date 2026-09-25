@@ -1,0 +1,111 @@
+# ff-manifest-osat-manager-slugify.yaml
+#
+# Declares which sat-doc-automa artifacts should be present in
+# osat-manager-slugify, at source == dest per the standard layout.
+# Per-target sync state lives in <local_target_repo_path>/.file-fairy-state.yaml,
+# written by `ff apply`, not here. This file only declares what belongs;
+# it does not track what is currently applied.
+#
+# Note: this repository was tool-python-slugify until 1.1.0. Its existing
+# how-to lives at docs/ rather than the standard en/docs/. The dests below
+# follow the standard; applying them begins the standard tree alongside
+# the existing one, and the docs/ reconciliation is this repository's own
+# migration to plan.
+
+version: "0.1.0"
+remote_source_repo: "steelcj/sat-doc-automa"
+remote_target_repo: "steelcj/osat-manager-slugify"
+local_source_repo_path: "~/2-areas/development/sat-doc-automa"
+local_target_repo_path: "~/2-areas/development/fluent/osat-manager-slugify"
+
+groups:
+  devops-scripts:
+    description: >
+      The release-ceremony scripts, required for release-managed
+      repositories per the standard layout. This repository is a
+      fluent manager (install-slug.py against side-by-side installed
+      versions, no build artefacts of its own), so the shared ceremony
+      applies unmodified: cut-release.py rolls CHANGELOG.md's Unreleased
+      section and tags, publish-release.py ships the tagged tarball and
+      SHA256SUMS through gh.
+    items:
+      - source: bump-version.py
+        dest: bump-version.py
+      - source: cut-release.py
+        dest: cut-release.py
+      - source: check-conformance.py
+        dest: check-conformance.py
+      - source: normalize-metadata.py
+        dest: normalize-metadata.py
+      - source: publish-release.py
+        dest: publish-release.py
+      - source: test_publish_release.py
+        dest: test_publish_release.py
+
+  devops-docs:
+    description: >
+      The workflow the devops-scripts implement, and the fairy's own
+      operating guide, plus the runbook for cutting and
+      publishing releases.
+    items:
+      - source: en/docs/guides/devops/commit-and-versioning-workflow-v0-3-0.md
+        dest: en/docs/guides/devops/commit-and-versioning-workflow-v0-3-0.md
+      - source: en/docs/guides/file-fairy/file-fairy-usage-v0-1-1.md
+        dest: en/docs/guides/file-fairy/file-fairy-usage-v0-1-1.md
+      - source: en/docs/guides/devops/runbook--cutting-and-publishing-releases-v0-1-0.md
+        dest: en/docs/guides/devops/runbook--cutting-and-publishing-releases-v0-1-0.md
+
+  markdown-automa:
+    description: >
+      Standing markdown house rules, enforced by check-conformance.py.
+    items:
+      - source: en/docs/automa/markdown/defaults/markdown--no-heading-numbers-v0-4-1.md
+        dest: en/docs/automa/markdown/defaults/markdown--no-heading-numbers-v0-4-1.md
+      - source: en/docs/automa/markdown/defaults/markdown--no-horizontal-rules-v0-3-1.md
+        dest: en/docs/automa/markdown/defaults/markdown--no-horizontal-rules-v0-3-1.md
+      - source: en/docs/automa/markdown/defaults/markdown--use-commas-not-em-dashes-v0-3-1.md
+        dest: en/docs/automa/markdown/defaults/markdown--use-commas-not-em-dashes-v0-3-1.md
+      - source: en/docs/automa/markdown/defaults/markdown--no-hard-line-wraps-v0-1-0.md
+        dest: en/docs/automa/markdown/defaults/markdown--no-hard-line-wraps-v0-1-0.md
+      - source: en/docs/automa/markdown/defaults/markdown--license-statement-templates-v0-3-1.md
+        dest: en/docs/automa/markdown/defaults/markdown--license-statement-templates-v0-3-1.md
+      - source: en/docs/automa/markdown/defaults/markdown--apa-7-citations-using-citation-anchor-pairs-v0-1-0.md
+        dest: en/docs/automa/markdown/defaults/markdown--apa-7-citations-using-citation-anchor-pairs-v0-1-0.md
+
+  ai-collaboration:
+    description: >
+      The standing directives every AI collaboration session follows.
+    items:
+      - source: en/docs/automa/ai-collaboration/defaults/collaboration--energy-conservation-in-ai-collaborations-v0-2-0.md
+        dest: en/docs/automa/ai-collaboration/defaults/collaboration--energy-conservation-in-ai-collaborations-v0-2-0.md
+
+  license-blocks:
+    description: >
+      Reusable License-section snippets, copied so License sections are
+      assembled from canonical text rather than re-derived by eye.
+    items:
+      - source: en/docs/automa/licenses/license-block--gpl-3-0-or-later.md
+        dest: en/docs/automa/licenses/license-block--gpl-3-0-or-later.md
+      - source: en/docs/automa/licenses/license-block--code-and-code-docs--gpl-3-0-or-later.md
+        dest: en/docs/automa/licenses/license-block--code-and-code-docs--gpl-3-0-or-later.md
+      - source: en/docs/automa/licenses/license-block--content-cc-by-4-0.md
+        dest: en/docs/automa/licenses/license-block--content-cc-by-4-0.md
+
+  claude-md:
+    description: >
+      The shared CLAUDE.md signpost, a fairy-owned block at the top of
+      the target's CLAUDE.md; everything below the markers is the
+      target's own. Requires file-fairy 0.4.0 or later.
+    items:
+      - block: claude-md-signpost
+        source: en/docs/automa/claude-md/claude-md-signpost-block.md
+        dest: CLAUDE.md
+        anchor: BOF
+
+  style-guides:
+    sync_mode: reference_only
+    description: >
+      Style guides are cited by versionless slug, never copied; a copy
+      is exactly the drift the shared zone exists to prevent. This group
+      records that they are in force here without syncing anything.
+    items: []

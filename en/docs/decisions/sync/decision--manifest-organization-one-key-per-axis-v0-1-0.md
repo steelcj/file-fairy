@@ -1,18 +1,18 @@
 ---
-dcterms:title: "Decision: Manifest Organization, One Key per Axis"
+dc:title: "Decision: Manifest Organization, One Key per Axis"
 dcterms:version: "0.1.0"
-dcterms:creator: "Christopher Steel"
-dcterms:contributor: "Claude Fable 5 (Anthropic) — drafting assistance"
-dcterms:description: "Ratifies the manifest-organization design: each axis of the four-axes meta-model is exactly one manifest key (state; source or content; sync_mode; glob and exclude), managed blocks are their own item shape, and the five open rulings are decided, including absent-first implementation order."
+dc:creator: "Christopher Steel"
+dc:contributor: "Claude Fable 5 (Anthropic) — drafting assistance"
+dc:description: "Ratifies the manifest-organization design: each axis of the four-axes meta-model is exactly one manifest key (state; source or content; sync_mode; glob and exclude), managed blocks are their own item shape, and the five open rulings are decided, including absent-first implementation order."
 dcterms:created: "2026-08-03"
 dcterms:modified: "2026-08-03"
-dcterms:format: "text/markdown"
-dcterms:language: "en"
+dc:format: "text/markdown"
+dc:language: "en"
 sat:language_bcp47: "en"
-dcterms:relation: "design--manifest-organization-for-accepted-features, decision--file-fairy-manifest-declared-sync-policy"
-dcterms:identifier: "decision--manifest-organization-one-key-per-axis"
+dc:relation: "design--manifest-organization-for-accepted-features, decision--file-fairy-manifest-declared-sync-policy"
+dc:identifier: "decision--manifest-organization-one-key-per-axis"
 dcterms:rightsHolder: "Christopher Steel"
-dcterms:rights: >
+dc:rights: >
   Copyright 2026 Christopher Steel.
   SPDX-License-Identifier: AGPL-3.0-or-later
 sat:uuid: ""

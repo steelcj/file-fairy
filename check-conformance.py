@@ -6,7 +6,7 @@ check-conformance.py, report mechanically-detectable conformance issues.
 Scans versioned markdown documents under en/docs and reports the findings
 that a machine can detect without judgement, the class of issue collected
 in ROADMAP.md: dotted filename version separators, missing required
-frontmatter fields, a dcterms:identifier that does not match the filename
+frontmatter fields, a dc:identifier that does not match the filename
 slug, em dashes in prose, asterisk bullets, and numbered headings.
 
 This is a linter, not an autofixer. It changes nothing. It exits non-zero
@@ -24,10 +24,10 @@ ROOT = Path(__file__).resolve().parent
 DOCS = ROOT / "en" / "docs"
 
 REQUIRED_FIELDS = [
-    "dcterms:title",
+    "dc:title",
     "dcterms:version",
-    "dcterms:creator",
-    "dcterms:identifier",
+    "dc:creator",
+    "dc:identifier",
     "dcterms:created",
     "dcterms:modified",
     "sat:uuid",
@@ -37,7 +37,7 @@ DOTTED_VERSION = re.compile(r"-v\d+\.\d+\.\d+")
 HYPHEN_VERSION_SUFFIX = re.compile(r"-v\d+-\d+-\d+$")
 NUMBERED_HEADING = re.compile(r"^#{1,6}\s+\d+([.)]|\s)")
 ASTERISK_BULLET = re.compile(r"^\s*\*\s+\S")
-IDENTIFIER_LINE = re.compile(r'^dcterms:identifier:\s*"?([^"\n]+)"?\s*$')
+IDENTIFIER_LINE = re.compile(r'^dc:identifier:\s*"?([^"\n]+)"?\s*$')
 
 
 def split_frontmatter(text: str):
@@ -94,7 +94,7 @@ def check_file(path: Path):
             expected = slug_from_filename(name)
             if identifier != expected:
                 issues.append(
-                    f"dcterms:identifier {identifier!r} does not match filename slug {expected!r}"
+                    f"dc:identifier {identifier!r} does not match filename slug {expected!r}"
                 )
 
     # Body checks, skipping fenced code blocks.

@@ -17,63 +17,26 @@ Python 3.8+ and PyYAML.
 
 ## Install
 
-```bash
-git clone https://github.com/steelcj/file-fairy.git
-cd file-fairy
-pip install .
-/home/initial/.local/bin/python3.12 -m pip install .
-```
-
-venv option
+`install-ff.py` installs file-fairy into user-space, following the same layout as the other OSAT managers (osat-fluent-python-tool, osat-manager-slugify). No root or Administrator privilege is needed, and the manager refuses to run with it. It needs Python 3.8 or later with working `venv` and `pip`, and builds the venv from whichever interpreter runs it, so use your python-tool install if you have one.
 
 ```bash
-git clone https://github.com/steelcj/file-fairy.git
-cd file-fairy
-VERSION=$(cat VERSION)
-/home/initial/.local/bin/python3.12 -m venv --prompt "file-fairy-${VERSION}" ".venv-file-fairy-${VERSION}"
-source ".venv-file-fairy-${VERSION}/bin/activate"
-pip install .
+cd ~/2-areas/development/file-fairy
+python3.12 install-ff.py --install
 ```
 
-Output example:
+That installs the checkout's `VERSION` under `~/.local/share/file-fairy/<version>/` and renders `ff` and `file-fairy` wrappers into `~/.local/bin`. On Windows the same pieces go to `%LOCALAPPDATA%\file-fairy\<version>\` and `%LOCALAPPDATA%\Programs\`, which is not on `PATH` by default.
 
-```bash
-Processing ./.
-  Installing build dependencies ... done
-  Getting requirements to build wheel ... done
-  Preparing metadata (pyproject.toml) ... done
-Collecting PyYAML>=6.0 (from file-fairy==0.1.0)
-  Using cached pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
-Using cached pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)
-Building wheels for collected packages: file-fairy
-  Building wheel for file-fairy (pyproject.toml) ... done
-  Created wheel for file-fairy: filename=file_fairy-0.1.0-py3-none-any.whl size=6756 sha256=7433e2dc74e700f06f0d5c6063302d04777fa396b8fad948eaf514f46900a23a
-  Stored in directory: /home/initial/.cache/pip/wheels/26/96/69/5907a7ce2480b9d5336eba7f9e5856a38fbb30026162da2ebf
-Successfully built file-fairy
-Installing collected packages: PyYAML, file-fairy
-Successfully installed PyYAML-6.0.3 file-fairy-0.1.0
+The install is a snapshot of the checkout. Pulling or editing changes nothing until you run `--install` again, so a fairy you are developing is exercised with `python3 file_fairy.py` from the checkout, or reinstalled with `--install --force`.
+
+```
+install-ff.py --install          Install this checkout's version and activate it
+install-ff.py --switch VERSION   Point the wrappers at another installed version
+install-ff.py --status           Show installed and active versions
+install-ff.py --remove VERSION   Remove an installed, inactive version
+install-ff.py --version          Show the manager's version
 ```
 
-and if required:
-
-```bash
-pip install --upgrade pip
-```
-
-Output example:
-
-```bash
-Requirement already satisfied: pip in ./.venv-file-fairy-0.1.0/lib/python3.12/site-packages (25.0.1)
-Collecting pip
-  Using cached pip-26.1.2-py3-none-any.whl.metadata (4.6 kB)
-Using cached pip-26.1.2-py3-none-any.whl (1.8 MB)
-Installing collected packages: pip
-  Attempting uninstall: pip
-    Found existing installation: pip 25.0.1
-    Uninstalling pip-25.0.1:
-      Successfully uninstalled pip-25.0.1
-Successfully installed pip-26.1.2
-```
+The package version now comes from `VERSION` through `pyproject.toml`, so `pip show file-fairy` agrees with the release tags.
 
 ## Manifest format
 

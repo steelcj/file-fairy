@@ -1,17 +1,17 @@
 ---
-dcterms:title: "Analysis: Ansible Builtin Modules as file-fairy Feature Candidates"
+dc:title: "Analysis: Ansible Builtin Modules as file-fairy Feature Candidates"
 dcterms:version: "0.1.0"
-dcterms:creator: "Christopher Steel"
-dcterms:contributor: "Claude (Anthropic) — drafting assistance"
-dcterms:description: "Surveys the ansible.builtin module collection, extracts every capability relevant to file-fairy's domain of repo-to-repo file distribution, and classifies each as adopt, adapt, defer, or out-of-scope, organized by the four-axes meta-model of a managed path. Produces the candidate feature list from which manifest organization will be designed in a subsequent step."
+dc:creator: "Christopher Steel"
+dc:contributor: "Claude (Anthropic) — drafting assistance"
+dc:description: "Surveys the ansible.builtin module collection, extracts every capability relevant to file-fairy's domain of repo-to-repo file distribution, and classifies each as adopt, adapt, defer, or out-of-scope, organized by the four-axes meta-model of a managed path. Produces the candidate feature list from which manifest organization will be designed in a subsequent step."
 dcterms:created: "2026-08-02"
 dcterms:modified: "2026-08-02"
-dcterms:format: "text/markdown"
-dcterms:language: "en"
+dc:format: "text/markdown"
+dc:language: "en"
 sat:language_bcp47: "en"
-dcterms:identifier: "analysis--ansible-builtin-modules-as-file-fairy-feature-candidates"
+dc:identifier: "analysis--ansible-builtin-modules-as-file-fairy-feature-candidates"
 dcterms:rightsHolder: "Christopher Steel"
-dcterms:rights: >
+dc:rights: >
   Copyright 2026 Christopher Steel.
   SPDX-License-Identifier: AGPL-3.0-or-later
 sat:uuid: ""

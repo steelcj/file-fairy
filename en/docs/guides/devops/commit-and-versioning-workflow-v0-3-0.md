@@ -1,16 +1,16 @@
 ---
-dcterms:title: "Commit and Versioning Workflow"
+dc:title: "Commit and Versioning Workflow"
 dcterms:version: "0.3.0"
-dcterms:creator: "Christopher Steel"
-dcterms:description: "Practical workflow for commits and version bumps: initial commit, and every subsequent release after that."
+dc:creator: "Christopher Steel"
+dc:description: "Practical workflow for commits and version bumps: initial commit, and every subsequent release after that."
 dcterms:created: "2026-07-24"
 dcterms:modified: "2026-08-02"
-dcterms:format: "text/markdown"
-dcterms:language: "en"
+dc:format: "text/markdown"
+dc:language: "en"
 sat:language_bcp47: "en"
-dcterms:identifier: "commit-and-versioning-workflow"
+dc:identifier: "commit-and-versioning-workflow"
 dcterms:rightsHolder: "Christopher Steel"
-dcterms:rights: >
+dc:rights: >
   Copyright 2026 Christopher Steel.
   SPDX-License-Identifier: AGPL-3.0-or-later
 sat:uuid: ""
@@ -153,13 +153,35 @@ Use this for every release after the initial commit.
 
 As work happens, add entries to `CHANGELOG.md`'s `## [Unreleased]` section by hand, under `### Added`, `### Changed`, or `### Removed` as appropriate. This is a separate concern from cutting the release itself: `cut-release.py` reads what's already there, it never writes changelog prose.
 
+### Ensure for and edit the CHANGELOG.md
+
+```bash
+typora CHANGELOG.md
+```
+
+Content example:
+
+```markdown
+# Changelog
+
+All notable changes to the uc-radar repository are recorded here. This is the repository-level changelog: it records what each tagged release contained and why. Each document additionally carries its own changelog, in its frontmatter and in a Changelog table, for changes internal to that document.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions track the `VERSION` file and the git tags. Dates are ISO 8601.
+
+## [Unreleased]
+
+### Added
+
+- Shared zone received from sat-doc-automa via file-fairy: the release-ceremony scripts, the devops guides, the markdown and AI-collaboration automa, the license blocks, and the CLAUDE.md signpost block. Synced inventory in .file-fairy-state.yaml.
+```
+
 ### Cut the release
 
 ```bash
 python3 cut-release.py patch
 ```
 
-Or `minor`, `major`, or an explicit version. This calls `bump-version.py` to write `VERSION`, rolls `CHANGELOG.md`'s `Unreleased` section into a dated `## [X.Y.Z] - YYYY-MM-DD` heading, leaves a fresh empty `Unreleased` above it, commits `VERSION` and `CHANGELOG.md` surgically, never `git add .`, guards that `HEAD:VERSION` matches, tags, and guards the tag. It stops before push.
+Or `minor`, `major`, `patch`or an explicit version. This calls `bump-version.py` to write `VERSION`, rolls `CHANGELOG.md`'s `Unreleased` section into a dated `## [X.Y.Z] - YYYY-MM-DD` heading, leaves a fresh empty `Unreleased` above it, commits `VERSION` and `CHANGELOG.md` surgically, never `git add .`, guards that `HEAD:VERSION` matches, tags, and guards the tag. It stops before push.
 
 Output example:
 
@@ -210,7 +232,7 @@ After the tag is pushed, publish the release artifacts. Dry-run first to see exa
 
 ```bash
 python3 publish-release.py --dry-run
-python3 publish-release.py
+git co
 ```
 
 Output example (dry run):
