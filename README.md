@@ -1,7 +1,19 @@
 # file-fairy
 
-Version: 0.1.0
-Status: Draft
+> **Archived on 2026-10-11.** file-fairy is no longer developed. Its last release is [v0.7.0](https://github.com/steelcj/file-fairy/releases/tag/v0.7.0).
+>
+> Its engine continues as **[uc-portage](https://github.com/steelcj/uc-portage)**, a generic file reconciler with the same sync modes (`mirror`, `seed_if_missing`, `overwrite`, `reference_only`), managed blocks and `state: absent` retraction, plus line-ending-blind checksums, a case-collision check and `harvest`. Shared files are now published as offerings by **[uc-automa](https://github.com/steelcj/uc-automa)**, and each repository subscribes to them in its own `.uc-automa.yaml`, instead of manifests with local source and target paths.
+>
+> This repository stays readable, and every link and clone keeps working. Its code and documents remain under AGPL-3.0-or-later; uc-portage and uc-automa are MIT for code and CC BY 4.0 for documentation.
+
+## Moving from file-fairy
+
+- **Manifests are not migrated.** A repository that received files through an `ff-manifest-*.yaml` runs `uc-automa init` and `uc-automa offerings apply` instead; see uc-automa's README.
+- **Managed blocks are renamed.** Blocks marked `<!-- fairy:begin NAME -->` and `<!-- fairy:end NAME -->` are written `<!-- uc-portage:begin NAME -->` and `<!-- uc-portage:end NAME -->` by uc-portage. Rename existing markers before the first apply, or uc-portage adds a second block.
+- **The state file starts afresh.** `.file-fairy-state.yaml` is not read; uc-portage keeps `.uc-portage-state.yaml`. On the first apply, a file identical to the offering is adopted, and a differing one under `mirror` is reported as a conflict to review, never overwritten.
+- **The command is `uc-portage`.** There is no `ff` alias and no bare form that means apply.
+- **The decisions carried over.** The sync-policy and one-key-per-axis decisions are uc-portage's decision records 0001 and 0002, revised to offerings, each naming its file-fairy original in `dc:source`.
+- **Removing file-fairy.** Once nothing uses it, delete its install root, `~/.local/share/file-fairy/` (`%LOCALAPPDATA%\file-fairy\` on Windows), and the `ff` and `file-fairy` wrappers it wrote in `~/.local/bin/` (`%LOCALAPPDATA%\Programs\` on Windows).
 
 A config-driven CLI that copies named groups of files from a source project to a target project on local disk, driven by a YAML manifest, with `plan`, `apply`, and `status` verbs and checksum-based drift tracking.
 

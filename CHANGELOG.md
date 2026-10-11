@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+* Placed archive notification in README.md 
+
 ## [0.7.0] - 2026-09-25
 
 - Fiddling
